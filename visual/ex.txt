@@ -1,0 +1,94 @@
+# SAE (Simultaneous Authentication of Equals)
+
+---
+
+---
+
+## **SAE** (Simultaneous Authentication of Equals) **란**
+
+1. **Dictionary Attack 방지**
+    - PSK 방식은 암호화된 패킷을 캡처하면 오프라인으로 여러 암호 조합을 대입하여 암호를 추측할 수 있는 Dictionary Attack에 취약
+    - SAE는 암호화된 키 교환 방식(Diffie-Hellman)을 사용해 이 공격을 방지
+2. **Perfect Forward Secrecy (PFS, 순방향 비밀성)**
+    - 과거에 사용된 세션 키가 유출되더라도, 이후의 세션 트래픽이 안전하게 보호됨
+    - 각 세션마다 고유키가 생성, 이전 세션의 데이터는 보호됨
+        
+        →  키 교환에 임시 값(Ephemeral Key)을 사용하는 ‘ Diffie-Hellman 방식 ‘ 덕분
+        
+3. **양방향 인증**
+    - PSK는 일방적인 인증 구조지만, 
+    SAE는 클라이언트와 AP(Access Point)가 서로를 인증하는 방식
+4. **Brute Force 방지**
+    - 키 교환 중에도 시도 횟수 제한으로 brute force 공격에 대한 추가 방어를 제공
+
+---
+
+## **SAE와 PSK의 차이점**
+
+| 특징 | PSK | SAE (WPA3) |
+| --- | --- | --- |
+| **키 교환 방식** | 고정된 Pre-Shared Key | Diffie-Hellman 키 교환 |
+| **보안성** | Dictionary 및 Brute Force 공격에 취약 | 강력한 공격 방어 제공 |
+| **Forward Secrecy** | 없음 | 있음 |
+| **양방향 인증** | 없음 | 있음 |
+| **암호화된 키 교환** | 없음 | 있음 |
+
+---
+
+## **SAE의 동작 원리**
+
+SAE는 **Dragonfly Handshake**를 통해 Diffie-Hellman 기반의 인증과 키 교환을 수행
+
+### 1. Password Element (PE) 생성
+
+- 클라이언트와 액세스 포인트(AP)는 공유된 비밀번호(Passphrase)를 기반으로 동일한 `PE`(Password Element)를 생성
+- `PE`는 Diffie-Hellman 키 교환에서 사용되는 기초 값으로, 비밀번호를 직접 사용하지 않고 안전한 방식으로 변환하여 사용
+
+### 2. Commit 단계
+
+- 클라이언트와 AP는 각각 랜덤한 비밀 값(Private Key)을 생성
+    - 클라이언트의 비밀 값: $x_A$
+    - AP의 비밀 값: $x_R$
+- 이 비밀 값을 사용하여 공개 값(Public Key)을 생성하고 서로 교환
+    - 클라이언트는 $M_A = g^{x_A} \mod p$를 AP에 전송
+    - AP는 $M_R = g^{x_R} \mod p$를 클라이언트에 전송
+- 공개 값 교환 시 추가적인 암호화를 통해 키 교환 중의 정보 탈취 방지
+
+### 3. Confirm 단계
+
+- 클라이언트와 AP는 서로의 공개 값을 확인한 뒤, 동일한 공유 키(Session Key) 생성
+    - 클라이언트는 $K_A = (M_R)^{x_A} \mod p$로 세션 키를 계산
+    - AP는 $K_R = (M_A)^{x_R} \mod p$로 세션 키 계산
+- 이 과정에서 생성된 Session Key는 클라이언트와 AP 간의 암호화된 데이터 통신에 사용됨
+
+---
+
+## **SAE의 암호학적 원리**
+
+### 1. Diffie-Hellman 키 교환
+
+- 클라이언트와 액세스 포인트(AP)는 서로 공개 키를 교환
+    - 클라이언트 : $M_A = g^{x_A} \mod p$
+    - AP : $M_R = g^{x_R} \mod p$
+- 각 기기는 상대방의 공개 키를 사용하여 공유 키를 계산
+    - 클라이언트는 $K_A = (M_R)^{x_A} \mod p$로 세션 키를 생성
+    - AP는 $K_R = (M_A)^{x_R} \mod p$로 세션 키 생성
+
+ →  이 과정에서 최종적으로 생성된 공유 키 $g^{(x_A x_R)} \mod p$는 제3자가 추측하기 어려운 값으로, 
+       네트워크 암호화 키로 사용됨
+
+### 2. Password Element 변환
+
+- SAE는 사용자의 비밀번호(Passphrase)를 직접 사용하지 않고, 이를 Password Element(PE)로 변환하여 키 교환의 기본 요소로 활용
+
+ →  암호학적 해시 함수 및 비밀 값의 결합을 통해 수행되며, 비밀번호의 직접적인 노출을 방지
+
+### 3. 해시 함수 및 랜덤성
+
+- 각 단계에서 보안을 강화하기 위해 SHA-256과 같은 해시 함수가 사용됨
+
+ → 해시 함수 : 입력 데이터를 고정된 크기의 해시 값으로 변환하여, 
+
+                    원본 데이터를 복원할 수 없도록 함
+
+- 랜덤 값(Nonce)을 사용하여 각 세션마다 고유한 키 생성이 가능하게 하여, 재사용 공격을 방지
