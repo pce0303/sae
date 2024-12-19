@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
-import DHVisualization from './DHV';
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
 
 const App = () => {
     const [password, setPassword] = useState("");
@@ -10,8 +11,54 @@ const App = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [salt, setSalt] = useState("");
     const [commitData, setCommitData] = useState(null);
+    const [commitProgress, setCommitProgress] = useState(0);
+    const [confirmProgress, setConfirmProgress] = useState(0);
+    const [commitMessage, setCommitMessage] = useState("");
+    const [confirmMessage, setConfirmMessage] = useState("");
+    const [isCommitInProgress, setIsCommitInProgress] = useState(false);
+    const [isConfirmInProgress, setIsConfirmInProgress] = useState(false);
+
+    const getProgressColor = (progress) => {
+        if (progress <= 25) {
+            return '#FF6347';
+        } else if (progress <= 50) {
+            return '#FFA500'; 
+        } else if (progress <= 75) {
+            return '#FFD700'; 
+        } else {
+            return '#32CD32';
+        }
+    };
 
     const handleCommit = async () => {
+        if (password.length < 8) {
+            alert("비밀번호는 8자 이상이어야 합니다.");
+            return;
+        }
+    
+        setIsCommitInProgress(true);
+        setCommitProgress(0);
+        setCommitMessage("커밋 단계 시작 ...");
+    
+        const interval = setInterval(() => {
+            setCommitProgress((prev) => {
+                const next = prev + 1;
+    
+                if (next === 10) setCommitMessage("salt 값 생성중 ...");
+                else if (next === 25) setCommitMessage("PBKDF2로 PE 생성 중 ...");
+                else if (next === 40) setCommitMessage("Diffie-Hellman 키 생성 중 ...");
+                else if (next === 55) setCommitMessage("비밀번호 강화 중 ...");
+                else if (next === 75) setCommitMessage("공개 키 교환 중 ...");
+                else if (next === 90) setCommitMessage("비밀 키 반환 중 ...");
+                else if (next === 100) {
+                    setCommitMessage("커밋 단계 완료");
+                    clearInterval(interval);
+                }
+    
+                return next <= 100 ? next : 100;
+            });
+        }, 50);
+    
         try {
             const response = await axios.post("http://localhost:3000/api/sae/commit", { password });
             const { clientPublicKey, serverPublicKey, salt, clientCommit, serverCommit } = response.data;
@@ -23,8 +70,30 @@ const App = () => {
             console.error("Error during commit:", error);
         }
     };
-
+    
     const handleConfirm = async () => {
+        setIsConfirmInProgress(true);
+        setConfirmProgress(0);
+        setConfirmMessage("컴펌 단계 시작 ...");
+    
+        const interval = setInterval(() => {
+            setConfirmProgress((prev) => {
+                const next = prev + 1;
+    
+                if (next === 10) setConfirmMessage("커밋 결과 확인 중 ...");
+                else if (next === 30) setConfirmMessage("타이밍 공격 시작 중 ...");
+                else if (next === 50) setConfirmMessage("공유 키 계산 중 ...");
+                else if (next === 70) setConfirmMessage("공유 키 인증 중 ...");
+                else if (next === 85) setConfirmMessage("인증 상태 반환 중 ...");
+                else if (next === 100) {
+                    setConfirmMessage("컴펌 단계 완료");
+                    clearInterval(interval);
+                }
+    
+                return next <= 100 ? next : 100;
+            });
+        }, 50);
+    
         try {
             const response = await axios.post("http://localhost:3000/api/sae/confirm", {
                 clientPublicKey,
@@ -36,15 +105,14 @@ const App = () => {
         } catch (error) {
             console.error("Error during confirm:", error);
         }
-    };
-
+    };    
+    
     return (
-        <>
         <div style={styles.container}>
             <h1 style={styles.heading}>SAE Simulator</h1>
             <input
                 type="password"
-                placeholder="Enter your password"
+                placeholder="8자 이상 비밀번호 입력"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={styles.input}
@@ -52,46 +120,78 @@ const App = () => {
             <button onClick={handleCommit} style={styles.button}>
                 Start Commit Stage
             </button>
-
-            {clientPublicKey && serverPublicKey && (
+    
+            {(isCommitInProgress || isConfirmInProgress) && (
+                <div style={styles.feedbackContainer}>
+                    <p style={styles.feedbackText}>
+                        {isCommitInProgress ? commitMessage : confirmMessage}
+                    </p>
+                </div>
+            )}
+    
+            {clientPublicKey && serverPublicKey && commitProgress==100 && (
                 <>
                     <div style={styles.keyContainer}>
-                        <p style={styles.keyLabel}>Client Public Key:</p>
+                        <p style={styles.keyLabel}>클라이언트 공개 키:</p>
                         <p style={styles.keyValue}>{clientPublicKey.substring(0, 40)}...</p>
-                        <p style={styles.keyLabel}>Server Public Key:</p>
+                        <p style={styles.keyLabel}>서버 공개 키:</p>
                         <p style={styles.keyValue}>{serverPublicKey.substring(0, 40)}...</p>
                     </div>
                     <button onClick={handleConfirm} style={styles.button}>
                         Start Confirm Stage
                     </button>
+                    <br></br><br></br>
                 </>
             )}
-            
-            {sharedKey && (
+
+            {sharedKey && confirmProgress==100 && (
                 <div style={styles.resultContainer}>
                     <p style={styles.keyLabel}>Shared Key:</p>
                     <p style={styles.keyValue}>{sharedKey.substring(0, 40)}...</p>
-                    <br />
                     <p style={styles.resultText}>
-                        Authentication Status: <span style={styles.authStatus}>{isAuthenticated ? "Success" : "Failed"}</span>
+                        인증 상태 : <span style={styles.authStatus}>{isAuthenticated ? "Success" : "Failed"}</span>
                     </p>
-                    <br />
                 </div>
             )}
-
-            {sharedKey && clientPublicKey && serverPublicKey && (
-                <DHVisualization
-                    clientPublicKey={clientPublicKey}
-                    serverPublicKey={serverPublicKey}
-                    sharedKey={sharedKey}
-                    commitData={commitData}
-                />
+    
+            {commitProgress !== 0 && (
+                <div style={styles.progressContainer}>
+                    <CircularProgressbar
+                        value={commitProgress}
+                        text={`${commitProgress}%`}
+                        styles={buildStyles({
+                            pathColor: getProgressColor(commitProgress),
+                            textColor: '#000',
+                            trailColor: '#e0e0e0',
+                        })}
+                        strokeWidth={8}
+                        style={{ height: '100px', width: '100px' }}
+                    />
+                    <br></br>
+                </div>
             )}
+    
+            {isConfirmInProgress && confirmProgress !== 0 && (
+                <div style={styles.progressContainer}>
+                    <CircularProgressbar
+                        value={confirmProgress}
+                        text={`${confirmProgress}%`}
+                        styles={buildStyles({
+                            pathColor: getProgressColor(confirmProgress),
+                            textColor: '#000',
+                            trailColor: '#e0e0e0',
+                        })}
+                        strokeWidth={8}
+                        style={{ height: '100px', width: '100px' }}
+                    />
+                    <br></br>
+                </div>
+            )}
+    
         </div>
-        <br />
-        </>
     );
-};
+    
+};  
 
 const styles = {
     container: {
@@ -104,6 +204,8 @@ const styles = {
         boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
         textAlign: "center",
         marginTop: "30px",
+        maxHeight: "80vh",
+        overflowY: "auto",
     },
     heading: {
         color: "#333",
@@ -123,7 +225,7 @@ const styles = {
         padding: "12px 24px",
         fontSize: "16px",
         color: "#fff",
-        backgroundColor: "#007bff",
+        backgroundColor: "#89aace",
         border: "none",
         borderRadius: "8px",
         cursor: "pointer",
@@ -135,7 +237,7 @@ const styles = {
     },
     keyLabel: {
         fontSize: "18px",
-        color: "#007bff", // Blue color for labels
+        color: "#007bff",
         fontWeight: "bold",
     },
     keyValue: {
@@ -149,8 +251,7 @@ const styles = {
     },
     resultContainer: {
         marginTop: "20px",
-        paddingTop: "15px",
-        borderTop: "1px solid #ddd",
+        marginBottom: "50px",
     },
     resultText: {
         fontSize: "18px",
@@ -163,8 +264,27 @@ const styles = {
     },
     authStatus: {
         fontWeight: "bold",
-        color: "#28a745", // Green for success, red for failure (will be handled later)
-    }
+        color: "#28a745",
+    },
+    progressContainer: {
+        position: 'relative',
+        display: 'inline-block',
+        width: '200px',
+        marginRight: '20px',
+    },
+    feedbackContainer: {
+        position: 'relative',
+        marginBottom: '20px',
+        padding: '10px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        marginTop: '10px',
+    },
+    feedbackText: {
+        fontSize: '16px',
+        color: '#333',
+        fontWeight: 'bold',
+    },
 };
 
 export default App;
