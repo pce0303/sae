@@ -14,6 +14,7 @@ const App = () => {
     const [commitProgress, setCommitProgress] = useState(0);
     const [confirmProgress, setConfirmProgress] = useState(0);
     const [commitMessage, setCommitMessage] = useState("");
+    const [commitInterval, setCommitInterval] = useState(null); // 커밋 interval 상태 추가
     const [confirmMessage, setConfirmMessage] = useState("");
     const [isCommitInProgress, setIsCommitInProgress] = useState(false);
     const [isConfirmInProgress, setIsConfirmInProgress] = useState(false);
@@ -53,11 +54,14 @@ const App = () => {
                 else if (next === 100) {
                     setCommitMessage("커밋 단계 완료");
                     clearInterval(interval);
+                    setCommitInterval(null);
                 }
     
                 return next <= 100 ? next : 100;
             });
         }, 50);
+
+        setCommitInterval(interval);
     
         try {
             const response = await axios.post("http://localhost:3000/api/sae/commit", { password });
@@ -67,6 +71,7 @@ const App = () => {
             setSalt(salt);
             setCommitData({ clientCommit, serverCommit });
         } catch (error) {
+            setCommitMessage("커밋 단계 중 에러 발생: " + error.message);
             console.error("Error during commit:", error);
         }
     };
@@ -103,9 +108,26 @@ const App = () => {
             setSharedKey(response.data.sharedKey);
             setIsAuthenticated(response.data.isAuthenticated);
         } catch (error) {
+            setConfirmMessage("컨펌 단계 중 에러 발생: " + error.message);
             console.error("Error during confirm:", error);
         }
     };    
+
+    const cancelCommit = () => {
+        if (commitInterval) {
+            clearInterval(commitInterval); 
+            setCommitInterval(null); 
+        }
+        setCommitProgress(0);
+        setIsCommitInProgress(false);
+        setCommitMessage("커밋 단계 취소됨");
+    };    
+    
+    const cancelConfirm = () => {
+        setConfirmProgress(0);
+        setIsConfirmInProgress(false);
+        setConfirmMessage("컴펌 단계 취소됨");
+    };
     
     return (
         <div style={styles.container}>
@@ -119,6 +141,9 @@ const App = () => {
             />
             <button onClick={handleCommit} style={styles.button}>
                 Start Commit Stage
+            </button>
+            <button onClick={cancelCommit} style={{ ...styles.button, backgroundColor: '#b57064' }}>
+                Cancel Commit
             </button>
     
             {isCommitInProgress && (
@@ -139,6 +164,9 @@ const App = () => {
                     </div>
                     <button onClick={handleConfirm} style={styles.button}>
                         Start Confirm Stage
+                    </button>
+                    <button onClick={cancelConfirm} style={{ ...styles.button, backgroundColor: '#b57064' }}>
+                        Cancel Confirm
                     </button>
                     <br></br><br></br>
                 </>
