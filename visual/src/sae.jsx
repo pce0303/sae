@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
+import zxcvbn from "zxcvbn";
 
 const App = () => {
     const [password, setPassword] = useState("");
@@ -14,10 +15,37 @@ const App = () => {
     const [commitProgress, setCommitProgress] = useState(0);
     const [confirmProgress, setConfirmProgress] = useState(0);
     const [commitMessage, setCommitMessage] = useState("");
-    const [commitInterval, setCommitInterval] = useState(null); // 커밋 interval 상태 추가
+    const [commitInterval, setCommitInterval] = useState(null);
     const [confirmMessage, setConfirmMessage] = useState("");
     const [isCommitInProgress, setIsCommitInProgress] = useState(false);
     const [isConfirmInProgress, setIsConfirmInProgress] = useState(false);
+    const [passwordStrength, setPasswordStrength] = useState(null); 
+
+    const evaluatePasswordStrength = (password) => {
+        if (!password) {
+            setPasswordStrength(null);
+            return;
+        }
+        const result = zxcvbn(password);
+        setPasswordStrength(result);
+    };
+
+    const getStrengthColor = (score) => {
+        switch (score) {
+            case 0:
+                return "#FF6347"; 
+            case 1:
+                return "#FFA500"; 
+            case 2:
+                return "#FFD700";
+            case 3:
+                return "#32CD32"; 
+            case 4:
+                return "#008000"; 
+            default:
+                return "#d3d3d3"; 
+        }
+    };
 
     const getProgressColor = (progress) => {
         if (progress <= 25) {
@@ -128,6 +156,27 @@ const App = () => {
         setIsConfirmInProgress(false);
         setConfirmMessage("컴펌 단계 취소됨");
     };
+
+    const handleDownloadResults = () => {
+        const data = {
+            sharedKey,
+            isAuthenticated,
+            clientPublicKey,
+            serverPublicKey,
+            salt,
+            timestamp: new Date().toISOString(),
+        };
+    
+        const jsonBlob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(jsonBlob);
+    
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "auth_results.json";
+        link.click();
+    
+        URL.revokeObjectURL(url); 
+    };    
     
     return (
         <div style={styles.container}>
@@ -136,9 +185,36 @@ const App = () => {
                 type="password"
                 placeholder="8자 이상 비밀번호 입력"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                    setPassword(e.target.value);
+                    evaluatePasswordStrength(e.target.value);
+                }}
                 style={styles.input}
             />
+            {passwordStrength && (
+                <div style={styles.strengthContainer}>
+                    <p style={styles.strengthText}>
+                        비밀번호 강도: <strong style={{ color: getStrengthColor(passwordStrength.score) }}>
+                            {["매우 약함", "약함", "보통", "강함", "매우 강함"][passwordStrength.score]}
+                        </strong>
+                    </p>
+                    <div style={styles.barContainer}>
+                        <div
+                            style={{
+                                ...styles.strengthBar,
+                                width: `${(passwordStrength.score + 1) * 20}%`,
+                                backgroundColor: getStrengthColor(passwordStrength.score),
+                            }}
+                        ></div>
+                    </div>
+                    <p style={styles.passText}>
+                        {passwordStrength.feedback.suggestions.length > 0
+                            ? `권장 사항: ${passwordStrength.feedback.suggestions.join(", ")}`
+                            : "좋은 비밀번호입니다!"}
+                    </p>
+                </div>
+            )}
+
             <button onClick={handleCommit} style={styles.button}>
                 Start Commit Stage
             </button>
@@ -187,6 +263,9 @@ const App = () => {
                     <p style={styles.resultText}>
                         인증 상태 : <span style={styles.authStatus}>{isAuthenticated ? "Success" : "Failed"}</span>
                     </p>
+                    <button onClick={handleDownloadResults} style={styles.button}>
+                        결과 다운로드
+                    </button>
                 </div>
             )}
     
@@ -321,6 +400,33 @@ const styles = {
         color: '#333',
         fontWeight: 'bold',
     },
+    strengthContainer: {
+        marginTop: "20px",
+        textAlign: "center",
+    },
+    strengthText: {
+        fontSize: "16px",
+        fontWeight: "bold",
+        marginBottom: "10px",
+    },
+    passText: {
+        fontSize: "14px",
+        color: "#555",
+        marginTop: "10px",
+    },
+    barContainer: {
+        height: "20px",
+        width: "100%",
+        backgroundColor: "#e0e0e0",
+        borderRadius: "10px",
+        overflow: "hidden",
+        marginTop: "10px",
+    },
+    strengthBar: {
+        height: "100%",
+        transition: "width 0.3s ease",
+        borderRadius: "10px",
+    },    
 };
 
 export default App;

@@ -2,13 +2,14 @@ import { useState } from "react";
 import axios from "axios";
 
 const PSK_Dictionary_Attack = () => {
-    const [passwordList, setPasswordList] = useState("");
+    const [passwordList, setPasswordList] = useState("");  // 문자열로 초기화
     const [result, setResult] = useState(null);
     const [stats, setStats] = useState({ fileSize: 0, complexity: "" });
     const [file, setFile] = useState(null); 
 
     const handlePasswordInput = (e) => {
-        setPasswordList(e.target.value);
+        const inputValue = e.target.value;
+        setPasswordList(inputValue);  // 문자열로 관리
     };
 
     const handleFileUpload = (e) => {
@@ -18,37 +19,23 @@ const PSK_Dictionary_Attack = () => {
             const reader = new FileReader();
             reader.onload = () => {
                 const fileContent = reader.result;
-                setPasswordList(fileContent.split("\n").map((line) => line.trim())); 
+                setPasswordList(fileContent.split("\n").map((line) => line.trim()).join(","));
             };
             reader.readAsText(selectedFile);
         }
     };
 
     const handleDictionaryAttack = async () => {
-        let passwords = [];
-    
-        if (Array.isArray(passwordList)) {
-            passwords = passwordList;
-        } else {
-            passwords = passwordList.split(",").map((pwd) => pwd.trim()).filter((pwd) => pwd.length > 0);
-        }
-    
-        if (file) {
-            const fileReader = new FileReader();
-            fileReader.onload = () => {
-                const fileContent = fileReader.result;
-                const passwordsFromFile = fileContent.split(",").map((pwd) => pwd.trim()).filter((pwd) => pwd.length > 0);
-                processPasswords(passwordsFromFile);
-            };
-            fileReader.readAsText(file);
-            return; 
-        }
-    
+        const passwords = passwordList
+            .split(/[\n,]+/)  // 쉼표나 줄 바꿈을 기준으로 나눔
+            .map((pwd) => pwd.trim())
+            .filter((pwd) => pwd.length > 0);
+
         if (passwords.length === 0) {
             alert("비밀번호 리스트가 비어 있습니다. 비밀번호를 입력해주세요.");
             return;
         }
-    
+
         processPasswords(passwords);
     };
     
@@ -75,8 +62,6 @@ const PSK_Dictionary_Attack = () => {
         }
     };
     
-    
-
     return (
         <div style={styles.container}>
             <h1 style={styles.heading}>PSK Dictionary 공격</h1>
