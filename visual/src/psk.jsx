@@ -2,14 +2,14 @@ import { useState } from "react";
 import axios from "axios";
 
 const PSK_Dictionary_Attack = () => {
-    const [passwordList, setPasswordList] = useState("");  // 문자열로 초기화
+    const [passwordList, setPasswordList] = useState("");
     const [result, setResult] = useState(null);
     const [stats, setStats] = useState({ fileSize: 0, complexity: "" });
     const [file, setFile] = useState(null); 
 
     const handlePasswordInput = (e) => {
         const inputValue = e.target.value;
-        setPasswordList(inputValue);  // 문자열로 관리
+        setPasswordList(inputValue); 
     };
 
     const handleFileUpload = (e) => {
