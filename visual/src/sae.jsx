@@ -121,10 +121,10 @@ const App = () => {
                 Start Commit Stage
             </button>
     
-            {(isCommitInProgress || isConfirmInProgress) && (
+            {isCommitInProgress && (
                 <div style={styles.feedbackContainer}>
                     <p style={styles.feedbackText}>
-                        {isCommitInProgress ? commitMessage : confirmMessage}
+                        {isCommitInProgress ? commitMessage : '진행 상황 추적 실패'}
                     </p>
                 </div>
             )}
@@ -142,6 +142,14 @@ const App = () => {
                     </button>
                     <br></br><br></br>
                 </>
+            )}
+
+            {isConfirmInProgress && (
+                <div style={styles.feedbackContainer}>
+                    <p style={styles.feedbackText}>
+                        {isConfirmInProgress ? confirmMessage : '진행 상황 추적 실패'}
+                    </p>
+                </div>
             )}
 
             {sharedKey && confirmProgress==100 && (
