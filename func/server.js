@@ -1,7 +1,12 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
 import { generateDHKeys, commitStage, confirmStage, generateRandomSalt } from "./sae.js";
 import { dictionaryAttack } from "./psk.js";
+import { fileURLToPath } from "url";  
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
@@ -65,6 +70,12 @@ app.post("/api/dictionary-attack", (req, res) => {
     }
 });
 
+app.use(express.static(path.join(__dirname, '..', 'visual', 'dist')));
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'visual', 'dist', 'index.html'));
+});
+
 app.listen(3000, () => {
-    console.log("server is running on http://localhost:3000");
+    console.log("Server is running on http://localhost:3000");
 });
